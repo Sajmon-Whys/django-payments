@@ -18,6 +18,7 @@ PACKAGES = [
     'payments.sagepay',
     'payments.sofort',
     'payments.stripe',
+    'payments.twisto',
     'payments.wallet']
 
 REQUIREMENTS = [

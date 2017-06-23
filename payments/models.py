@@ -121,6 +121,10 @@ class BasePayment(models.Model):
         provider = provider_factory(self.variant)
         return provider.get_form(self, data=data)
 
+    def process_data(self, payment, orders):
+        provider = provider_factory(self.variant)
+        return provider.process_data(self, payment, orders=orders)
+
     def get_purchased_items(self):
         return []
 
@@ -132,7 +136,7 @@ class BasePayment(models.Model):
 
     def get_process_url(self):
         return reverse('process_payment', kwargs={'token': self.token})
-
+        
     def capture(self, amount=None):
         if self.status != PaymentStatus.PREAUTH:
             raise ValueError(
@@ -169,3 +173,4 @@ class BasePayment(models.Model):
     @property
     def attrs(self):
         return PaymentAttributeProxy(self)
+

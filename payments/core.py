@@ -10,7 +10,8 @@ from django.core.exceptions import ImproperlyConfigured
 
 
 PAYMENT_VARIANTS = {
-    'default': ('payments.dummy.DummyProvider', {})}
+    'default': ('payments.dummy.DummyProvider', {}),
+    'twisto':('payments.twisto.TwistoProvider', {})}
 
 PAYMENT_HOST = getattr(settings, 'PAYMENT_HOST', None)
 if not PAYMENT_HOST:
