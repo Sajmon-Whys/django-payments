@@ -121,9 +121,9 @@ class BasePayment(models.Model):
         provider = provider_factory(self.variant)
         return provider.get_form(self, data=data)
 
-    def process_data(self, payment, orders):
+    def process_data(self, data=None, orders=None):
         provider = provider_factory(self.variant)
-        return provider.process_data(self, payment, orders=orders)
+        return provider.process_data(self, data=data, orders=orders)
 
     def get_purchased_items(self):
         return []

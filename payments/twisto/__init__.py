@@ -13,7 +13,7 @@ except ImportError:
     from urllib import urlencode
 from django.http import HttpResponseRedirect
 
-from .forms import DummyForm
+from .forms import TwistoForm
 from .. import PaymentError, PaymentStatus, RedirectNeeded
 from ..core import BasicProvider
 
@@ -22,34 +22,70 @@ from Crypto.Cipher import AES
 from Crypto.Hash.HMAC import HMAC
 from Crypto.Hash.SHA256 import SHA256Hash
 import json
+from uniqid  import uniqid
 
 PRODUCT = 0
 SHIPPING = 1
+SECRET_ENCRYPTION_KEY = 'test_sk_7ed521bfa829f26e735619cd5d239dd9e0e555f4c6f6498d2a37fa78213ef83d'
 
 class TwistoProvider(BasicProvider):
-    '''
-    Dummy payment provider
-    '''
+    def get_form(self, payment, payload=None, data=None):
+        if payment.status == PaymentStatus.WAITING:
+            payment.change_status(PaymentStatus.INPUT)
+        form = TwistoForm(data=data, hidden_inputs={'public_key':'test_sk_7ed521bfa829f26e735619cd5d239dd9e0e555f4c6f6498d2a37fa78213ef83d', 'payload':payload}, provider=self,
+                         payment=payment)
+        if form.is_valid():
+            new_status = form.cleaned_data['status']
+            payment.change_status(new_status)
+            new_fraud_status = form.cleaned_data['fraud_status']
+            payment.change_fraud_status(new_fraud_status)
 
-    def process_data(self, payment, request, **kwargs):
-        orders_array = []
-        orders = kwargs['orders']
+            gateway_response = form.cleaned_data.get('gateway_response')
+            verification_result = form.cleaned_data.get('verification_result')
+            if gateway_response or verification_result:
+                if gateway_response == '3ds-disabled':
+                    # Standard request without 3DSecure
+                    pass
+                elif gateway_response == '3ds-redirect':
+                    # Simulate redirect to 3DS and get back to normal
+                    # payment processing
+                    process_url = payment.get_process_url()
+                    params = urlencode(
+                        {'verification_result': verification_result})
+                    redirect_url = '%s?%s' % (process_url, params)
+                    raise RedirectNeeded(redirect_url)
+                elif gateway_response == 'failure':
+                    # Gateway raises error (HTTP 500 for example)
+                    raise URLError('Opps')
+                elif gateway_response == 'payment-error':
+                    raise PaymentError('Unsupported operation')
+
+            if new_status in [PaymentStatus.PREAUTH, PaymentStatus.CONFIRMED]:
+                raise RedirectNeeded(payment.get_success_url())
+            raise RedirectNeeded(payment.get_failure_url())
+        return form
+
+    def process_data(self, payment, data=None, orders=None):
+        order_array = []
         for order in orders:
-            orders_array.append(self.serialize_order(order))
+            order_array.append(self.serialize_order(order))
 
         twisto_payload = {
-            #'random_nonce':uniqid('', True),
+            'random_nonce':uniqid('', True),
             'customer':{
                 'email':order.user_email,
             },
-            'order':orders_array.pop(0),
-            'previous_orders':orders_array,
+            'order':order_array.pop(0),
+            'previous_orders':order_array,
         }
-        print(twisto_payload)
-
-    def encrypt(self):
+        encrypted_payload = self.encrypt(twisto_payload)
+        return self.get_form(payment, payload=encrypted_payload, data=data or None)
+        
+ 
+    #Twisto API python encryption
+    def encrypt(self, data):
         # získání key a salt
-        key_part = secret_encryption_key[8:]
+        key_part = SECRET_ENCRYPTION_KEY[8:]
         binary_key = binascii.unhexlify(key_part)
         key, salt = binary_key[:16], binary_key[16:]
         # Inicializační vektor
@@ -68,7 +104,7 @@ class TwistoProvider(BasicProvider):
         serialized_data += bytes(16 - len(serialized_data) % 16)
         # šifrování
         encrypted_data = cipher.encrypt(serialized_data)
-        str = base64.b64encode((iv + digest + encrypted_data), encoding='utf-8')
+        str = base64.b64encode(iv + digest + encrypted_data)
         return str
 
     def serialize_address(self, address):
