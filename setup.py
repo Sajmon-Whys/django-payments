@@ -23,7 +23,7 @@ PACKAGES = [
 
 REQUIREMENTS = [
     'braintree>=3.14.0',
-    'Django==1.11.5',
+    'Django>=1.11',
     'cryptography>=1.1.0',
     'PyJWT>=1.3.0',
     'requests>=1.2.0',
@@ -35,7 +35,7 @@ REQUIREMENTS = [
 class PyTest(TestCommand):
     user_options = [('pytest-args=', 'a', "Arguments to pass to py.test")]
     test_args = []
-    
+
     def initialize_options(self):
         TestCommand.initialize_options(self)
         self.pytest_args = []
@@ -57,7 +57,7 @@ setup(
     author='Mirumee Software',
     author_email='hello@mirumee.com',
     description='Universal payment handling for Django',
-    version='0.11.0.3',
+    version='0.12.1',
     url='http://github.com/mirumee/django-payments',
     packages=PACKAGES,
     include_package_data=True,
@@ -70,6 +70,7 @@ setup(
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
         'Framework :: Django',
         'Topic :: Software Development :: Libraries :: Application Frameworks',
         'Topic :: Software Development :: Libraries :: Python Modules'],
